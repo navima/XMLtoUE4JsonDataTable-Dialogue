@@ -1,41 +1,53 @@
 ﻿Imports System.IO
 Public Class Form1
 
-    Sub OnDropped(sender As Object, e As DragEventArgs) Handles InputsFilesContainer.DragDrop
+    ''' <summary>
+    ''' Handles files dropped onto the form
+    ''' </summary>
+    Sub OnDropped(sender As Object, e As DragEventArgs) Handles InputFileContainer.DragDrop
 
         For Each file In e.Data.GetData(DataFormats.FileDrop)
 
-
-            addFile(e.Data.GetData(DataFormats.FileDrop)(0).ToString)
+            addFile(InputFileContainer, file.ToString)
 
         Next
+
     End Sub
 
-    Sub addFile(path As String)
+    ''' <summary>
+    ''' Adds a label with text 'path' to 'container's controls
+    ''' Also adds DoubleClick handler
+    ''' </summary>
+    Sub addFile(container As Control, path As String)
+
         Dim label1 = New Label With {.Text = path,
                                      .AutoSize = True}
 
 
-        InputsFilesContainer.Controls.Add(label1)
+        container.Controls.Add(label1)
 
-        AddHandler label1.DoubleClick, AddressOf destroy
+        AddHandler label1.DoubleClick, Sub(sender, e)
+                                           sender.Parent.Controls.Remove(sender)
+                                       End Sub
     End Sub
 
-    Sub destroy(sender As Object, e As EventArgs)
-        sender.Parent.Controls.Remove(sender)
-    End Sub
-
-    Private Sub InputsFilesContainer_DragEnter(sender As Object, e As DragEventArgs) Handles InputsFilesContainer.DragEnter
+    ''' <summary>
+    ''' Handles DragEnter of InputFilesContainer
+    ''' </summary>
+    Private Sub InputsFilesContainer_DragEnter(sender As Object, e As DragEventArgs) Handles InputFileContainer.DragEnter
         e.Effect = DragDropEffects.Link
     End Sub
 
+    ''' <summary>
+    ''' Handles Convert-button click
+    ''' </summary>
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles ConvertButton.Click
-        For Each filelabel As Label In InputsFilesContainer.Controls
+        For Each filelabel As Label In InputFileContainer.Controls
 
             'Deserialize XML
             Dim InGraph As graphml = deserializeXML(filelabel.Text)
 
-            'Filling data
+            'Processing
             For Each GroupNode In InGraph.graph.node
                 Dim sf As New Dictionary(Of String, sDialogue)
 
@@ -67,20 +79,21 @@ Public Class Form1
 
                 'Serialize to JSON
 
-                'Try to find Groupnode Label
-                Dim groupnodename As String = ""
+                'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
+                Dim groupNodeName As String = ""
 
-                For k = 0 To GroupNode.data.Length - 1
+                For Each elem In GroupNode.data
                     Try
-                        groupnodename = GroupNode.data(k).ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
-                        k = GroupNode.data.Length - 1
+                        groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
+                        Exit For 'exit loop if we successfully found the label text
                     Catch ex As Exception
 
                     End Try
                 Next
 
+
                 'Write
-                Dim writer As New StreamWriter(filelabel.Text + "-" + groupnodename + ".json")
+                Dim writer As New StreamWriter(filelabel.Text + "-" + groupNodeName + ".json")
                 Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
 
                 Dim ser2 As New Newtonsoft.Json.JsonSerializer()
@@ -92,21 +105,29 @@ Public Class Form1
         Next
     End Sub
 
+    ''' <summary>
+    ''' Handles loading
+    ''' Also loads last session's file entries
+    ''' </summary>
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles Me.Load
         Try
             Dim r As New StreamReader("PrevSession")
             Do Until r.EndOfStream
                 Dim be = r.ReadLine
-                addFile(be)
+                addFile(InputFileContainer, be)
             Loop
             r.Close()
         Catch ex As Exception
         End Try
     End Sub
 
+    ''' <summary>
+    ''' Handles closing
+    ''' Also writes session info for next startup
+    ''' </summary>
     Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
         Dim w As New StreamWriter("PrevSession")
-        For Each elem As Label In InputsFilesContainer.Controls
+        For Each elem As Label In InputFileContainer.Controls
             w.WriteLine(elem.Text)
         Next
         w.Close()

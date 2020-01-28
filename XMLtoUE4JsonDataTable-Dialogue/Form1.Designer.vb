@@ -22,22 +22,22 @@ Partial Class Form1
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
-        Me.InputsFilesContainer = New System.Windows.Forms.FlowLayoutPanel()
+        Me.InputFileContainer = New System.Windows.Forms.FlowLayoutPanel()
         Me.ConvertButton = New System.Windows.Forms.Button()
         Me.SuspendLayout()
         '
-        'InputsFilesContainer
+        'InputFileContainer
         '
-        Me.InputsFilesContainer.AllowDrop = True
-        Me.InputsFilesContainer.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+        Me.InputFileContainer.AllowDrop = True
+        Me.InputFileContainer.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
             Or System.Windows.Forms.AnchorStyles.Left), System.Windows.Forms.AnchorStyles)
-        Me.InputsFilesContainer.BackColor = System.Drawing.SystemColors.ControlLight
-        Me.InputsFilesContainer.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.InputsFilesContainer.Cursor = System.Windows.Forms.Cursors.Default
-        Me.InputsFilesContainer.Location = New System.Drawing.Point(12, 12)
-        Me.InputsFilesContainer.Name = "InputsFilesContainer"
-        Me.InputsFilesContainer.Size = New System.Drawing.Size(317, 426)
-        Me.InputsFilesContainer.TabIndex = 0
+        Me.InputFileContainer.BackColor = System.Drawing.SystemColors.ControlLight
+        Me.InputFileContainer.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.InputFileContainer.Cursor = System.Windows.Forms.Cursors.Default
+        Me.InputFileContainer.Location = New System.Drawing.Point(12, 12)
+        Me.InputFileContainer.Name = "InputFileContainer"
+        Me.InputFileContainer.Size = New System.Drawing.Size(317, 426)
+        Me.InputFileContainer.TabIndex = 0
         '
         'ConvertButton
         '
@@ -56,13 +56,12 @@ Partial Class Form1
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(800, 450)
         Me.Controls.Add(Me.ConvertButton)
-        Me.Controls.Add(Me.InputsFilesContainer)
+        Me.Controls.Add(Me.InputFileContainer)
         Me.Name = "Form1"
-        Me.Text = "Form1"
+        Me.Text = "graphml XML to UE4 JSON converter"
         Me.ResumeLayout(False)
 
     End Sub
-
-    Friend WithEvents InputsFilesContainer As FlowLayoutPanel
     Friend WithEvents ConvertButton As Button
+    Friend WithEvents InputFileContainer As FlowLayoutPanel
 End Class
