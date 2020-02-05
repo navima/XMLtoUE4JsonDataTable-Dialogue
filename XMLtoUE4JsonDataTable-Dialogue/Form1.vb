@@ -42,6 +42,7 @@ Public Class Form1
     ''' Handles Convert-button click
     ''' </summary>
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles ConvertButton.Click
+        log(Now.ToString())
         For Each filelabel As Label In InputFileContainer.Controls
 
             'Deserialize XML
@@ -70,7 +71,15 @@ Public Class Form1
                     If sf.ContainsKey(edge.source) Then
                         For Each adat In edge.data
                             If adat.PolyLineEdge IsNot Nothing Then
-                                sf(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), edge.target)
+                                If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
+                                    sf(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), edge.target)
+                                Else
+                                    log("Edge from " + edge.source +
+                                                    " (" + sf(edge.source).Statement + ")" +
+                                                    " to " + edge.target +
+                                                    " (" + sf(edge.target).Statement + ")" +
+                                                    " has no label")
+                                End If
                             End If
                         Next
                     End If
@@ -103,6 +112,14 @@ Public Class Form1
 
             Next
         Next
+    End Sub
+
+    Private Sub log(s As String)
+        logTextBox.AppendText(s + vbNewLine)
+    End Sub
+
+    Private Sub logReset()
+        logTextBox.ResetText()
     End Sub
 
     ''' <summary>
@@ -170,8 +187,6 @@ Public Class Form1
 
         End Sub
     End Class
-
-
 
 End Class
 
