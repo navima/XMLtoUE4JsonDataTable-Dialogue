@@ -2584,7 +2584,7 @@ Partial Public Class PolyLineEdgeEdgeLabel
 
     Private widthField As Decimal
 
-    Private xField As Decimal
+    Private xField As Double
 
     Private spaceField As String
 
@@ -2831,7 +2831,7 @@ Partial Public Class PolyLineEdgeEdgeLabel
 
     '''<remarks/>
     <System.Xml.Serialization.XmlAttributeAttribute()>
-    Public Property x() As Decimal
+    Public Property x() As Double
         Get
             Return Me.xField
         End Get
