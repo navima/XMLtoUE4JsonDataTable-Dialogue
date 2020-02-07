@@ -51,34 +51,96 @@ Public Class Form1
             'Processing
             For Each GroupNode In InGraph.graph.node
                 If GroupNode.graph IsNot Nothing Then
-                    Dim sf As New Dictionary(Of String, sDialogue)
+                    Dim resultDict As New Dictionary(Of String, sDialogue)
+
+
+                    'Find node with geometry:triangle2 and switch its id with n*::n0
+
+                    Dim startOrigId = "n0"
+                    Dim myGroupId = "n0"
+
+                    Dim foundExplicitStart = False
+
+                    For Each smallNode In GroupNode.graph.node
+
+                        For Each smalldata In smallNode.data
+                            If smalldata.ShapeNode IsNot Nothing AndAlso smalldata.ShapeNode.Shape.type = "triangle2" Then
+                                foundExplicitStart = True
+                                startOrigId = smallNode.id.Split("::")(2)
+                                myGroupId = smallNode.id.Split("::")(0)
+                                smallNode.id = myGroupId + "::" + "n0"
+                                Exit For
+                            End If
+                        Next
+
+                        If foundExplicitStart Then Exit For
+                    Next
+
+                    If foundExplicitStart Then
+                        'Switch node ids
+                        GroupNode.graph.node()(0).id = GroupNode.graph.node()(0).id.Split("::")(0) + "::" + startOrigId
+
+                        'Fix edges after switch
+                        For Each edge In InGraph.graph.edge
+                            Select Case edge.source
+                                Case myGroupId + "::" + startOrigId
+                                    edge.source = myGroupId + "::n0"
+                                Case myGroupId + "::n0"
+                                    edge.source = myGroupId + "::" + startOrigId
+                                Case Else
+
+                            End Select
+
+                            Select Case edge.target
+                                Case myGroupId + "::" + startOrigId
+                                    edge.target = myGroupId + "n0"
+                                Case myGroupId + "::n0"
+                                    edge.target = myGroupId + "::" + startOrigId
+                                Case Else
+
+                            End Select
+
+                        Next
+
+                    End If
 
 
                     'Nodes
                     For Each smallNode In GroupNode.graph.node
+
                         Dim currDialogue = New sDialogue()
                         currDialogue.Name = smallNode.id
+
                         For Each adat In smallNode.data
                             If adat.ShapeNode IsNot Nothing Then
                                 currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
                             End If
                         Next
-                        sf.Add(smallNode.id, currDialogue)
+
+                        resultDict.Add(smallNode.id, currDialogue)
                     Next
+
+
+                    If foundExplicitStart Then
+                        'Switch order of dialogues if found explicit start
+                        Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
+                        resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
+                        resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
+                    End If
 
 
                     'Edges
                     For Each edge In InGraph.graph.edge
-                        If sf.ContainsKey(edge.source) Then
+                        If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
                             For Each adat In edge.data
                                 If adat.PolyLineEdge IsNot Nothing Then
                                     If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
-                                        sf(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), edge.target)
+                                        resultDict(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
                                     Else
                                         log("Edge from " + edge.source +
-                                                    " (" + sf(edge.source).Statement + ")" +
+                                                    " (" + resultDict(edge.source).Statement + ")" +
                                                     " to " + edge.target +
-                                                    " (" + sf(edge.target).Statement + ")" +
+                                                    " (" + resultDict(edge.target).Statement + ")" +
                                                     " has no label")
                                     End If
                                 End If
@@ -107,7 +169,7 @@ Public Class Form1
                     Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
 
                     Dim ser2 As New Newtonsoft.Json.JsonSerializer()
-                    ser2.Serialize(jWriter, sf.Values)
+                    ser2.Serialize(jWriter, resultDict.Values)
                     writer.Close()
                     jWriter.Close()
 
@@ -170,8 +232,8 @@ Public Class Form1
         Public Response() As sResponse
         Public Timeout As Single = 4
         Public JumpTo As Integer = -1
-        Sub addResponse(response As String, jumptoID As String)
-            Dim jumptoIndex = jumptoID.Split("::")(2).TrimStart("n")
+        Sub addResponse(response As String, jumpToIndex As Integer)
+            'Dim jumptoIndex = jumptoID.Split("::")(2).TrimStart("n")
 
             If Me.Response Is Nothing Then
                 Me.Response = {New sResponse(response, jumptoIndex)}
@@ -1475,6 +1537,14 @@ Partial Public Class graphmlGraphNodeGraphNode
             Me.idField = Value
         End Set
     End Property
+
+    Public Overrides Function toString() As String
+        Dim temp = ""
+        For Each adat In data
+            temp += adat.ToString() + " "
+        Next
+        Return id + " " + temp
+    End Function
 End Class
 
 '''<remarks/>
@@ -1508,6 +1578,15 @@ Partial Public Class graphmlGraphNodeGraphNodeData
             Me.keyField = Value
         End Set
     End Property
+
+    Public Overrides Function ToString() As String
+
+        If ShapeNode IsNot Nothing AndAlso ShapeNode.NodeLabel IsNot Nothing AndAlso ShapeNode.NodeLabel.Text IsNot Nothing Then
+            Return ShapeNode.NodeLabel.Text(0)
+        End If
+
+        Return "empty"
+    End Function
 End Class
 
 '''<remarks/>
@@ -2253,6 +2332,17 @@ Partial Public Class graphmlGraphEdge
             Me.targetField = Value
         End Set
     End Property
+
+    Public Overrides Function ToString() As String
+
+        Dim temp = " "
+
+        For Each adat In data
+            temp += adat.ToString() + " "
+        Next
+
+        Return source + " to " + target + temp
+    End Function
 End Class
 
 '''<remarks/>
@@ -2286,6 +2376,13 @@ Partial Public Class graphmlGraphEdgeData
             Me.keyField = Value
         End Set
     End Property
+
+    Public Overrides Function ToString() As String
+        If PolyLineEdge IsNot Nothing AndAlso PolyLineEdge.EdgeLabel IsNot Nothing AndAlso PolyLineEdge.EdgeLabel.Text IsNot Nothing Then
+            Return polyLineEdgeField.EdgeLabel.Text(0)
+        End If
+        Return "empty"
+    End Function
 End Class
 
 '''<remarks/>
