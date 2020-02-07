@@ -22,4 +22,5 @@ Converts yEd's .graphml xml files to UE4-importable Json
 ## Explicit start functionality
 
   If you make your start node a down-pointing triangle, the program will try to make that node the first statement in the json file and also switch its name to n*::n0 where n* is its original group id
+  
   This is useful if for some ungodly reason yEd decides that it wants to shuffle the order of nodes or if you didn't start building your graph with the root
