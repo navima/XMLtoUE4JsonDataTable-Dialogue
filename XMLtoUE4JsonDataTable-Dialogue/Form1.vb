@@ -121,14 +121,6 @@ Public Class Form1
                     Next
 
 
-                    If foundExplicitStart Then
-                        'Switch order of dialogues if found explicit start
-                        Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
-                        resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
-                        resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
-                    End If
-
-
                     'Edges
                     For Each edge In InGraph.graph.edge
                         If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
@@ -153,7 +145,6 @@ Public Class Form1
 
                     'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
                     Dim groupNodeName As String = ""
-
                     For Each elem In GroupNode.data
                         Try
                             groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
@@ -162,6 +153,15 @@ Public Class Form1
 
                         End Try
                     Next
+
+
+                    If foundExplicitStart Then
+                        'Switch order of dialogues if found explicit start
+                        Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
+                        resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
+                        resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
+                    End If
+
 
 
                     'Write
@@ -229,28 +229,47 @@ Public Class Form1
     Class sDialogue
         Public Name As String = "name"
         Public Statement As String = "statement"
-        Public Response() As sResponse
+        Public Response() As sResponse = {New sResponse()} '() As sResponse
         Public Timeout As Single = 4
         Public JumpTo As Integer = -1
+
+        Function hasResponse() As Boolean
+            Return Not (Response.Length() = 1 And Response(0) = New sResponse())
+        End Function
+
         Sub addResponse(response As String, jumpToIndex As Integer)
             'Dim jumptoIndex = jumptoID.Split("::")(2).TrimStart("n")
 
-            If Me.Response Is Nothing Then
-                Me.Response = {New sResponse(response, jumptoIndex)}
+            If Not Me.hasResponse() Then
+                Me.Response = {New sResponse(response, jumpToIndex)}
             Else
                 ReDim Preserve Me.Response(Me.Response.Length)
                 Me.Response(Me.Response.Length - 1) = New sResponse(response, jumptoIndex)
             End If
         End Sub
+
+        'Public Overrides Function ToString() As String
+        '    Return Name + " " + Statement + " " + Response.Length()
+        'End Function
     End Class
 
     Class sResponse
         Public ResponseText As String = "..."
         Public JumpTo As Integer = -1
+
         Sub New(response As String, Optional jump As Integer = -1)
             ResponseText = response
             JumpTo = jump
         End Sub
+
+        Shared Operator <>(A As sResponse, B As sResponse) As Boolean
+            Return Not (A = B)
+        End Operator
+
+        Shared Operator =(A As sResponse, B As sResponse) As Boolean
+            Return A.JumpTo = B.JumpTo AndAlso A.ResponseText = B.ResponseText
+        End Operator
+
         Sub New()
 
         End Sub
