@@ -50,67 +50,72 @@ Public Class Form1
 
             'Processing
             For Each GroupNode In InGraph.graph.node
-                Dim sf As New Dictionary(Of String, sDialogue)
+                If GroupNode.graph IsNot Nothing Then
+                    Dim sf As New Dictionary(Of String, sDialogue)
 
 
-                'Nodes
-                For Each smallNode In GroupNode.graph.node
-                    Dim currDialogue = New sDialogue()
-                    currDialogue.Name = smallNode.id
-                    For Each adat In smallNode.data
-                        If adat.ShapeNode IsNot Nothing Then
-                            currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
-                        End If
+                    'Nodes
+                    For Each smallNode In GroupNode.graph.node
+                        Dim currDialogue = New sDialogue()
+                        currDialogue.Name = smallNode.id
+                        For Each adat In smallNode.data
+                            If adat.ShapeNode IsNot Nothing Then
+                                currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
+                            End If
+                        Next
+                        sf.Add(smallNode.id, currDialogue)
                     Next
-                    sf.Add(smallNode.id, currDialogue)
-                Next
 
 
-                'Edges
-                For Each edge In InGraph.graph.edge
-                    If sf.ContainsKey(edge.source) Then
-                        For Each adat In edge.data
-                            If adat.PolyLineEdge IsNot Nothing Then
-                                If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
-                                    sf(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), edge.target)
-                                Else
-                                    log("Edge from " + edge.source +
+                    'Edges
+                    For Each edge In InGraph.graph.edge
+                        If sf.ContainsKey(edge.source) Then
+                            For Each adat In edge.data
+                                If adat.PolyLineEdge IsNot Nothing Then
+                                    If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
+                                        sf(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), edge.target)
+                                    Else
+                                        log("Edge from " + edge.source +
                                                     " (" + sf(edge.source).Statement + ")" +
                                                     " to " + edge.target +
                                                     " (" + sf(edge.target).Statement + ")" +
                                                     " has no label")
+                                    End If
                                 End If
-                            End If
-                        Next
-                    End If
-                Next
+                            Next
+                        End If
+                    Next
 
 
-                'Serialize to JSON
+                    'Serialize to JSON
 
-                'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
-                Dim groupNodeName As String = ""
+                    'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
+                    Dim groupNodeName As String = ""
 
-                For Each elem In GroupNode.data
-                    Try
-                        groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
-                        Exit For 'exit loop if we successfully found the label text
-                    Catch ex As Exception
+                    For Each elem In GroupNode.data
+                        Try
+                            groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
+                            Exit For 'exit loop if we successfully found the label text
+                        Catch ex As Exception
 
-                    End Try
-                Next
+                        End Try
+                    Next
 
 
-                'Write
-                Dim writer As New StreamWriter(filelabel.Text + "-" + groupNodeName + ".json")
-                Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
+                    'Write
+                    Dim writer As New StreamWriter(filelabel.Text + "-" + groupNodeName + ".json")
+                    Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
 
-                Dim ser2 As New Newtonsoft.Json.JsonSerializer()
-                ser2.Serialize(jWriter, sf.Values)
-                writer.Close()
-                jWriter.Close()
+                    Dim ser2 As New Newtonsoft.Json.JsonSerializer()
+                    ser2.Serialize(jWriter, sf.Values)
+                    writer.Close()
+                    jWriter.Close()
 
+
+                End If
             Next
+
+
         Next
     End Sub
 
@@ -155,6 +160,7 @@ Public Class Form1
         Dim x As New graphml
         Dim ser = New Xml.Serialization.XmlSerializer(x.GetType)
         x = ser.Deserialize(r)
+        r.Close()
         Return x
     End Function
 
