@@ -3,6 +3,18 @@ Converts yEd's .graphml xml files to UE4-importable Json
 
 ## --Please note that this program is designed for my own workflow. It's more like a starting point for others to modify it to process data suited to their specific use case--
 
+## Compatibility
+
+My use case is:
+  - yEd 3.19
+  - UE 4.22, 4.24
+  
+It should work with any UE4 version as long as they don't change the behaviour of UStructures / DataTables
+
+It should work with any yEd version as long as they don't change the Hierarchy/Structure of their .graphml XML savefile
+
+If it breaks at the parsing the XML (graphml), try regenerating the XML class from your version's savefile. There's a Command line tool shipping with Visual Studio that can do that
+
 ## In yEd Graph Editor:
 ![Example](example.png)
 
