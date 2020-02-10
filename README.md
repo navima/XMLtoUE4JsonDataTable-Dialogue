@@ -1,6 +1,8 @@
 # XMLtoUE4JsonDataTable-Dialogue
 Converts yEd's .graphml xml files to UE4-importable Json
 
+## --Please note that this program is designed for my own workflow. It's more like a starting point for others to modify it to process data suited to their specific use case--
+
 ## In yEd Graph Editor:
 ![Example](example.png)
 
