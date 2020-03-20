@@ -38,154 +38,171 @@ Public Class Form1
         e.Effect = DragDropEffects.Link
     End Sub
 
-    ''' <summary>
-    ''' Handles Convert-button click
-    ''' </summary>
-    Private Sub Button1_Click(sender As Object, e As EventArgs) Handles ConvertButton.Click
-        log(Now.ToString())
-        For Each filelabel As Label In InputFileContainer.Controls
+	''' <summary>
+	''' Handles Convert-button click
+	''' </summary>
+	Private Sub Button1_Click(sender As Object, e As EventArgs) Handles ConvertButton.Click
 
-            'Deserialize XML
-            Dim InGraph As graphml = deserializeXML(filelabel.Text)
+		log("started " + Now.ToString())
+		ConvertButton.Enabled = False
 
-            'Processing
-            For Each GroupNode In InGraph.graph.node
-                If GroupNode.graph IsNot Nothing Then
-                    Dim resultDict As New Dictionary(Of String, sDialogue)
+		For Each filelabel As Label In InputFileContainer.Controls
 
+			'Deserialize XML
+			Dim InGraph As graphml = deserializeXML(filelabel.Text)
 
-                    'Find node with geometry:triangle2 and switch its id with n*::n0
-
-                    Dim startOrigId = "n0"
-                    Dim myGroupId = "n0"
-
-                    Dim foundExplicitStart = False
-
-                    For Each smallNode In GroupNode.graph.node
-
-                        For Each smalldata In smallNode.data
-                            If smalldata.ShapeNode IsNot Nothing AndAlso smalldata.ShapeNode.Shape.type = "triangle2" Then
-                                foundExplicitStart = True
-                                startOrigId = smallNode.id.Split("::")(2)
-                                myGroupId = smallNode.id.Split("::")(0)
-                                smallNode.id = myGroupId + "::" + "n0"
-                                Exit For
-                            End If
-                        Next
-
-                        If foundExplicitStart Then Exit For
-                    Next
-
-                    If foundExplicitStart Then
-                        'Switch node ids
-                        GroupNode.graph.node()(0).id = GroupNode.graph.node()(0).id.Split("::")(0) + "::" + startOrigId
-
-                        'Fix edges after switch
-                        For Each edge In InGraph.graph.edge
-                            Select Case edge.source
-                                Case myGroupId + "::" + startOrigId
-                                    edge.source = myGroupId + "::n0"
-                                Case myGroupId + "::n0"
-                                    edge.source = myGroupId + "::" + startOrigId
-                                Case Else
-
-                            End Select
-
-                            Select Case edge.target
-                                Case myGroupId + "::" + startOrigId
-                                    edge.target = myGroupId + "n0"
-                                Case myGroupId + "::n0"
-                                    edge.target = myGroupId + "::" + startOrigId
-                                Case Else
-
-                            End Select
-
-                        Next
-
-                    End If
+			'Processing
+			For Each GroupNode In InGraph.graph.node
+				If GroupNode.graph IsNot Nothing Then
+					Dim resultDict As New Dictionary(Of String, sDialogue)
 
 
-                    'Nodes
-                    For Each smallNode In GroupNode.graph.node
+					'Find node with geometry:triangle2 and switch its id with n*::n0
 
-                        Dim currDialogue = New sDialogue()
-                        currDialogue.Name = smallNode.id
+					Dim startOrigId = "n0"
+					Dim myGroupId = "n0"
 
-                        For Each adat In smallNode.data
-                            If adat.ShapeNode IsNot Nothing Then
-                                currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
-                            End If
-                        Next
+					Dim foundExplicitStart = False
 
-                        resultDict.Add(smallNode.id, currDialogue)
-                    Next
+					For Each smallNode In GroupNode.graph.node
 
+						For Each smalldata In smallNode.data
+							If smalldata.ShapeNode IsNot Nothing AndAlso smalldata.ShapeNode.Shape.type = "triangle2" Then
+								foundExplicitStart = True
+								startOrigId = smallNode.id.Split("::")(2)
+								myGroupId = smallNode.id.Split("::")(0)
+								smallNode.id = myGroupId + "::" + "n0"
+								Exit For
+							End If
+						Next
 
-                    'Edges
-                    For Each edge In InGraph.graph.edge
-                        If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
-                            For Each adat In edge.data
-                                If adat.PolyLineEdge IsNot Nothing Then
-                                    If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
-                                        resultDict(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
-                                    Else
-                                        log("Edge from " + edge.source +
-                                                    " (" + resultDict(edge.source).Statement + ")" +
-                                                    " to " + edge.target +
-                                                    " (" + resultDict(edge.target).Statement + ")" +
-                                                    " has no label")
-                                    End If
-                                End If
-                            Next
-                        End If
-                    Next
+						If foundExplicitStart Then Exit For
+					Next
 
+					If foundExplicitStart Then
+						'log
+						log("found explicit start at " + myGroupId + "::" + startOrigId)
 
-                    'Serialize to JSON
+						'Switch node ids
+						GroupNode.graph.node()(0).id = GroupNode.graph.node()(0).id.Split("::")(0) + "::" + startOrigId
 
-                    'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
-                    Dim groupNodeName As String = ""
-                    For Each elem In GroupNode.data
-                        Try
-                            groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
-                            Exit For 'exit loop if we successfully found the label text
-                        Catch ex As Exception
+						'Fix edges after switch
+						For Each edge In InGraph.graph.edge
+							Select Case edge.source
+								Case myGroupId + "::" + startOrigId
+									edge.source = myGroupId + "::n0"
+								Case myGroupId + "::n0"
+									edge.source = myGroupId + "::" + startOrigId
+								Case Else
 
-                        End Try
-                    Next
+							End Select
 
+							Select Case edge.target
+								Case myGroupId + "::" + startOrigId
+									edge.target = myGroupId + "n0"
+								Case myGroupId + "::n0"
+									edge.target = myGroupId + "::" + startOrigId
+								Case Else
 
-                    If foundExplicitStart Then
-                        'Switch order of dialogues if found explicit start
-                        Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
-                        resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
-                        resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
-                    End If
+							End Select
+
+						Next
+
+					End If
 
 
+					'Nodes
+					For Each smallNode In GroupNode.graph.node
 
-                    'Write
-                    Dim writer As New StreamWriter(filelabel.Text + "-" + groupNodeName + ".json")
-                    Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
+						Dim currDialogue = New sDialogue()
+						currDialogue.Name = smallNode.id
 
-                    Dim ser2 As New Newtonsoft.Json.JsonSerializer()
-                    ser2.Serialize(jWriter, resultDict.Values)
-                    writer.Close()
-                    jWriter.Close()
+						For Each adat In smallNode.data
+							If adat.ShapeNode IsNot Nothing Then
+								currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
+							End If
+						Next
+
+						resultDict.Add(smallNode.id, currDialogue)
+					Next
 
 
-                End If
-            Next
+					'Edges
+					For Each edge In InGraph.graph.edge
+						If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
+							For Each adat In edge.data
+								If adat.PolyLineEdge IsNot Nothing Then
+									If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
+										resultDict(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
+									Else
+										log("Edge from " + edge.source +
+													" (" + resultDict(edge.source).Statement + ")" +
+													" to " + edge.target +
+													" (" + resultDict(edge.target).Statement + ")" +
+													" has no label",
+											logtype.logWarning)
+
+										resultDict(edge.source).addResponse("", Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
+									End If
+								End If
+							Next
+						End If
+					Next
 
 
-        Next
-    End Sub
+					'Serialize to JSON
 
-    Private Sub log(s As String)
-        logTextBox.AppendText(s + vbNewLine)
-    End Sub
+					'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
+					Dim groupNodeName As String = ""
+					For Each elem In GroupNode.data
+						Try
+							groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
+							Exit For 'exit loop if we successfully found the label text
+						Catch ex As Exception
 
-    Private Sub logReset()
+						End Try
+					Next
+
+
+					If foundExplicitStart Then
+						'Switch order of dialogues if found explicit start
+						Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
+						resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
+						resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
+					End If
+
+
+
+					'Write
+					Dim writer As New StreamWriter(filelabel.Text + "-" + groupNodeName + ".json")
+					Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
+
+					Dim ser2 As New Newtonsoft.Json.JsonSerializer()
+					ser2.Serialize(jWriter, resultDict.Values)
+					writer.Close()
+					jWriter.Close()
+
+
+				End If
+			Next
+
+			log("finished " + filelabel.Text)
+		Next
+
+		log("finished " + Now.ToString())
+		ConvertButton.Enabled = True
+	End Sub
+
+	Enum logtype
+		logError
+		logWarning
+		logLog
+	End Enum
+	Private Sub log(s As String, Optional type As logtype = logtype.logLog)
+		logTextBox.AppendText(type.ToString().PadRight(12) + ": " + s + vbNewLine)
+	End Sub
+
+	Private Sub logReset()
         logTextBox.ResetText()
     End Sub
 
