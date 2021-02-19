@@ -21,7 +21,7 @@ Public Class Form1
 	''' Adds a label with text 'path' to 'container's controls
 	''' Also adds DoubleClick handler
 	''' </summary>
-	Sub addFile(container As Control, path As String)
+	Shared Sub addFile(container As Control, path As String)
 
 		Dim label1 = New Label With {.Text = path,
 									 .AutoSize = True}
@@ -50,38 +50,53 @@ Public Class Form1
 		ConvertButton.Enabled = False
 
 		For Each filelabel As Label In InputFileContainer.Controls
+			processFile(filelabel.Text)
+		Next
 
-			'Deserialize XML
-			Dim InGraph As Graphml.graphml = deserializeXML(filelabel.Text)
+		log("finished " + Now.ToString())
+		ConvertButton.Enabled = True
+	End Sub
 
-			'Processing
-			For Each GroupNode In InGraph.graph.node
-				If GroupNode.graph IsNot Nothing Then
-					Dim resultDict As New Dictionary(Of String, sDialogue)
+	Private Sub processFile(path As String)
+
+		'Check if path is still valid
+		Dim x As FileInfo
+		Try
+			x = New FileInfo(path)
+		Catch ex As Exception
+			log("file not found (" + ex.Message + ")", logtype.logError)
+			Return
+		End Try
+		If Not x.Exists Then
+			log("file not found (doesn't exist)", logtype.logError)
+			Return
+		End If
+
+		'Deserialize XML
+		Dim InGraph As Graphml.graphml = deserializeXML(path)
+
+		'Processing
+		For Each GroupNode In InGraph.graph.node
+			If GroupNode.graph IsNot Nothing Then
+				Dim resultDict As New Dictionary(Of String, sDialogue)
 
 
-					'Find node with geometry:triangle2 and switch its id with n*::n0
+				'Find node with geometry:triangle2 and switch its id with n*::n0
 
-					Dim startOrigId = "n0"
-					Dim myGroupId = "n0"
+				Dim startOrigId = "n0"
+				Dim myGroupId = "n0"
 
-					Dim foundExplicitStart = False
-
-					For Each smallNode In GroupNode.graph.node
-
-						For Each smalldata In smallNode.data
-							If smalldata.ShapeNode IsNot Nothing AndAlso smalldata.ShapeNode.Shape.type = "triangle2" Then
-								foundExplicitStart = True
-								startOrigId = smallNode.id.Split("::")(2)
-								myGroupId = smallNode.id.Split("::")(0)
-								smallNode.id = myGroupId + "::" + "n0"
-								Exit For
-							End If
-						Next
-
-						If foundExplicitStart Then Exit For
+				Dim foundExplicitStart = False
+				For Each smallNode In GroupNode.graph.node
+					For Each smalldata In smallNode.data
+						If smalldata.ShapeNode IsNot Nothing AndAlso smalldata.ShapeNode.Shape.type = "triangle2" Then
+							foundExplicitStart = True
+							startOrigId = smallNode.id.Split("::")(2)
+							myGroupId = smallNode.id.Split("::")(0)
+							smallNode.id = myGroupId + "::" + "n0"
+							Exit For
+						End If
 					Next
-
 					If foundExplicitStart Then
 						'log
 						log("found explicit start at " + myGroupId + "::" + startOrigId)
@@ -96,8 +111,6 @@ Public Class Form1
 									edge.source = myGroupId + "::n0"
 								Case myGroupId + "::n0"
 									edge.source = myGroupId + "::" + startOrigId
-								Case Else
-
 							End Select
 
 							Select Case edge.target
@@ -105,96 +118,78 @@ Public Class Form1
 									edge.target = myGroupId + "n0"
 								Case myGroupId + "::n0"
 									edge.target = myGroupId + "::" + startOrigId
-								Case Else
-
 							End Select
-
 						Next
-
+						Exit For
 					End If
+				Next
 
 
-					'Nodes
-					For Each smallNode In GroupNode.graph.node
+				'Nodes
+				For Each smallNode In GroupNode.graph.node
 
-						Dim currDialogue = New sDialogue()
-						currDialogue.Name = smallNode.id
+					Dim currDialogue = New sDialogue With {
+						.Name = smallNode.id
+					}
 
-						For Each adat In smallNode.data
-							If adat.ShapeNode IsNot Nothing Then
-								currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
-							End If
-						Next
-
-						resultDict.Add(smallNode.id, currDialogue)
-					Next
-
-
-					'Edges
-					For Each edge In InGraph.graph.edge
-						If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
-							For Each adat In edge.data
-								If adat.PolyLineEdge IsNot Nothing Then
-									If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
-										resultDict(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
-									Else
-										log("Edge has no label (from " + edge.source +
-													" (" + resultDict(edge.source).Statement + ")" +
-													" to " + edge.target +
-													" (" + resultDict(edge.target).Statement + "))",
-											logtype.logWarning)
-
-										resultDict(edge.source).addResponse("", Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
-									End If
-								End If
-							Next
+					For Each adat In smallNode.data
+						If adat.ShapeNode IsNot Nothing Then
+							currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
 						End If
 					Next
 
-
-					'Serialize to JSON
-
-					'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
-					Dim groupNodeName As String = ""
-					For Each elem In GroupNode.data
-						Try
-							groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
-							Exit For 'exit loop if we successfully found the label text
-						Catch ex As Exception
-
-						End Try
-					Next
+					resultDict.Add(smallNode.id, currDialogue)
+				Next
 
 
-					If foundExplicitStart Then
-						'Switch order of dialogues if found explicit start
-						Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
-						resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
-						resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
+				'Edges
+				For Each edge In InGraph.graph.edge
+					If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
+						For Each adat In edge.data
+							If adat.PolyLineEdge IsNot Nothing Then
+								If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
+									resultDict(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
+								Else
+									log("Edge has no label (from " + edge.source +
+												" (" + resultDict(edge.source).Statement + ")" +
+												" to " + edge.target +
+												" (" + resultDict(edge.target).Statement + "))",
+										logtype.logWarning)
+
+									resultDict(edge.source).addResponse("", Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
+								End If
+							End If
+						Next
 					End If
+				Next
 
 
+				'Try to find Groupnode Label - I have no idea what decides where it is but it seems to randomly change index...
+				Dim groupNodeName As String = ""
+				For Each elem In GroupNode.data
+					Try
+						groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
+						Exit For 'exit loop if we successfully found the label text
+					Catch ex As Exception
 
-					'Write
+					End Try
+				Next
 
-					'Dim writer As New StreamWriter(filelabel.Text + "-" + groupNodeName + ".json")
-					'Dim jWriter As New Newtonsoft.Json.JsonTextWriter(writer)
-
-					'Dim ser2 As New Newtonsoft.Json.JsonSerializer()
-					'ser2.Serialize(jWriter, resultDict.Values)
-					'writer.Close()
-					'jWriter.Close()
-
-					File.WriteAllText(filelabel.Text + "-" + groupNodeName + ".json", JsonSerializer.Serialize(resultDict.Values))
-
+				'Switch order of dialogues if found explicit start
+				If foundExplicitStart Then
+					Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
+					resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
+					resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
 				End If
-			Next
 
-			log("finished " + filelabel.Text)
+
+				'Write
+				File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(path) + "-" + groupNodeName + ".json",
+								  JsonSerializer.Serialize(resultDict.Values))
+			End If
 		Next
 
-		log("finished " + Now.ToString())
-		ConvertButton.Enabled = True
+		log("finished " + path)
 	End Sub
 
 	Enum logtype
@@ -238,7 +233,7 @@ Public Class Form1
 		w.Close()
 	End Sub
 
-	Function deserializeXML(path As String)
+	Shared Function deserializeXML(path As String)
 		Dim r As New StreamReader(path)
 		Dim x As New Graphml.graphml
 		Dim ser = New Xml.Serialization.XmlSerializer(x.GetType)
