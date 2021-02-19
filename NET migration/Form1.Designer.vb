@@ -66,7 +66,7 @@ Partial Class Form1
 		Me.logTextBox.Multiline = True
 		Me.logTextBox.Name = "logTextBox"
 		Me.logTextBox.ReadOnly = True
-		Me.logTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
+		Me.logTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both
 		Me.logTextBox.Size = New System.Drawing.Size(421, 353)
 		Me.logTextBox.TabIndex = 0
 		Me.logTextBox.WordWrap = False

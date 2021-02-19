@@ -1,6 +1,7 @@
 ﻿Public Module Graphml
 
     '// NOTE: Generated code may require at least .NET Framework 4.5 Or .NET Core/Standard 2.0.
+#Disable Warning IDE1006 ' Naming Styles
     '''<remarks/>
     <System.SerializableAttribute(),
  System.ComponentModel.DesignerCategoryAttribute("code"),
@@ -1257,6 +1258,15 @@
 
         Private idField As String
 
+        Function getLabel() As String
+            For Each adat In data
+                If adat.ShapeNode IsNot Nothing Then
+                    Return adat.ShapeNode.NodeLabel.Text(0)
+                End If
+            Next
+            Return ""
+        End Function
+
         '''<remarks/>
         <System.Xml.Serialization.XmlElementAttribute("data")>
         Public Property data() As graphmlGraphNodeGraphNodeData()
@@ -2029,6 +2039,15 @@
         Private sourceField As String
 
         Private targetField As String
+
+        Function getLabel()
+            For Each adat In data
+                If adat.PolyLineEdge IsNot Nothing AndAlso adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
+                    Return adat.PolyLineEdge.EdgeLabel.Text(0)
+                End If
+            Next
+            Return ""
+        End Function
 
         '''<remarks/>
         <System.Xml.Serialization.XmlElementAttribute("data")>

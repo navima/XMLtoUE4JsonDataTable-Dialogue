@@ -2,6 +2,8 @@
 Imports System.Text.Json
 Imports System.Xml.Serialization
 
+#Disable Warning IDE1006 ' Naming Styles
+
 Public Class Form1
 
 	''' <summary>
@@ -56,7 +58,21 @@ Public Class Form1
 		log("finished " + Now.ToString())
 		ConvertButton.Enabled = True
 	End Sub
-
+	Structure Edge
+		Public source As String
+		Public target As String
+		Public label As String
+		Sub New(source As String, target As String, label As String)
+			Me.source = source
+			Me.target = target
+			Me.label = label
+		End Sub
+	End Structure
+	Structure DialogueGroup
+		Dim dialogueData As Dictionary(Of String, sDialogue)
+		Dim groupName As String
+		Dim groupId As String
+	End Structure
 	Private Sub processFile(path As String)
 
 		'Check if path is still valid
@@ -75,10 +91,22 @@ Public Class Form1
 		'Deserialize XML
 		Dim InGraph As Graphml.graphml = deserializeXML(path)
 
+		Dim processedGroups As New Dictionary(Of String, DialogueGroup)
+
 		'Processing
+
+		'Cross Group Edges
+		Dim crossGroupEdges = New List(Of Edge)
+		For Each edge In InGraph.graph.edge
+			Dim myEdge = New Edge(edge.source, edge.target, edge.getLabel())
+			If Not myEdge.source.Split("::")(0) = myEdge.target.Split("::")(0) Then
+				crossGroupEdges.Add(myEdge)
+			End If
+		Next
+
 		For Each GroupNode In InGraph.graph.node
 			If GroupNode.graph IsNot Nothing Then
-				Dim resultDict As New Dictionary(Of String, sDialogue)
+				Dim processedGroup As New Dictionary(Of String, sDialogue)
 
 
 				'Find node with geometry:triangle2 and switch its id with n*::n0
@@ -127,39 +155,23 @@ Public Class Form1
 
 				'Nodes
 				For Each smallNode In GroupNode.graph.node
-
-					Dim currDialogue = New sDialogue With {
-						.Name = smallNode.id
-					}
-
-					For Each adat In smallNode.data
-						If adat.ShapeNode IsNot Nothing Then
-							currDialogue.Statement = adat.ShapeNode.NodeLabel.Text(0)
-						End If
-					Next
-
-					resultDict.Add(smallNode.id, currDialogue)
+					processedGroup.Add(smallNode.id, New sDialogue With {
+						.Name = smallNode.id,
+						.Statement = smallNode.getLabel()
+					})
 				Next
+				myGroupId = processedGroup.Keys(0).Split("::")(0)
 
 
 				'Edges
 				For Each edge In InGraph.graph.edge
-					If resultDict.ContainsKey(edge.source) AndAlso resultDict.ContainsKey(edge.target) Then
-						For Each adat In edge.data
-							If adat.PolyLineEdge IsNot Nothing Then
-								If adat.PolyLineEdge.EdgeLabel IsNot Nothing Then
-									resultDict(edge.source).addResponse(adat.PolyLineEdge.EdgeLabel.Text(0), Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
-								Else
-									log("Edge has no label (from " + edge.source +
-												" (" + resultDict(edge.source).Statement + ")" +
-												" to " + edge.target +
-												" (" + resultDict(edge.target).Statement + "))",
-										logtype.logWarning)
-
-									resultDict(edge.source).addResponse("", Array.IndexOf(resultDict.Keys.ToArray(), edge.target))
-								End If
-							End If
-						Next
+					Dim myEdge = New Edge(edge.source, edge.target, edge.getLabel())
+					If processedGroup.ContainsKey(myEdge.source) AndAlso processedGroup.ContainsKey(myEdge.target) Then
+						If myEdge.label = "" Then log(String.Format("Edge has no label (from {0} {1} to {2} {3})",
+																	myEdge.source, processedGroup(myEdge.source).Statement,
+																	myEdge.target, processedGroup(myEdge.target).Statement),
+														logtype.logWarning)
+						processedGroup(myEdge.source).addResponse(myEdge.label, Array.IndexOf(processedGroup.Keys.ToArray(), myEdge.target))
 					End If
 				Next
 
@@ -171,22 +183,40 @@ Public Class Form1
 						groupNodeName = elem.ProxyAutoBoundsNode.Realizers.GroupNode(0).NodeLabel.Value
 						Exit For 'exit loop if we successfully found the label text
 					Catch ex As Exception
-
 					End Try
 				Next
 
 				'Switch order of dialogues if found explicit start
 				If foundExplicitStart Then
-					Dim tempkeyvaluepair = resultDict(myGroupId + "::" + startOrigId)
-					resultDict(myGroupId + "::" + startOrigId) = resultDict(myGroupId + "::" + "n0")
-					resultDict(myGroupId + "::" + "n0") = tempkeyvaluepair
+					Dim tempkeyvaluepair = processedGroup(myGroupId + "::" + startOrigId)
+					processedGroup(myGroupId + "::" + startOrigId) = processedGroup(myGroupId + "::" + "n0")
+					processedGroup(myGroupId + "::" + "n0") = tempkeyvaluepair
 				End If
 
 
-				'Write
-				File.WriteAllText(System.IO.Path.GetFileNameWithoutExtension(path) + "-" + groupNodeName + ".json",
-								  JsonSerializer.Serialize(resultDict.Values))
+				processedGroups.Add(myGroupId, New DialogueGroup With {.dialogueData = processedGroup, .groupId = myGroupId, .groupName = groupNodeName})
+
 			End If
+		Next
+
+
+
+		For Each edge In crossGroupEdges
+			Dim sourceGroup = processedGroups(edge.source.Split("::")(0))
+			Dim sourceStatement = sourceGroup.dialogueData(edge.source)
+			Dim targetGroup = processedGroups(edge.target.Split("::")(0))
+			Dim targetStatement = targetGroup.dialogueData(edge.target)
+
+			sourceStatement.Statement += "#activate " + targetGroup.groupName.Replace(" ", "_") + " " + edge.GetHashCode().ToString()
+			targetStatement.Statement += "#name " + sourceGroup.groupName.Replace(" ", "_") + " " + edge.GetHashCode().ToString()
+		Next
+
+
+
+		'Write
+		For Each processedGroup In processedGroups
+			File.WriteAllText(IO.Path.Combine(IO.Path.GetDirectoryName(path), IO.Path.GetFileNameWithoutExtension(path)) + "-" + processedGroup.Value.groupName + ".json",
+								  JsonSerializer.Serialize(processedGroup.Value.dialogueData.Values))
 		Next
 
 		log("finished " + path)
