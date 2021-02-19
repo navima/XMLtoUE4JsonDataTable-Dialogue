@@ -1,0 +1,3 @@
+  "macros": when a certain edge style points to a node, create a new node while processing, with return edge to original source
+  log dialogue-ending nodes, for safety
+  special edge to activate quest
